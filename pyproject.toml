@@ -20,3 +20,9 @@ classifiers = [
 [project.urls]
 Homepage = "https://github.com/kadirhanpolat/Yoklama"
 Issues = "https://github.com/kadirhanpolat/Yoklama/issues"
+
+[tool.hatch.build.targets.wheel]
+ignore-vcs = true
+include = [
+  "src/**"
+]

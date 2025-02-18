@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 
 class Yariyil:
-    def __init__(self, donem, baslangicTarihiMetni, bitisTarihiMetni):
+    def __init__(self, donem, baslangicTarihiMetni, bitisTarihiMetni, tatilGunleri):
         
         self.__donem = donem
 
@@ -10,6 +10,17 @@ class Yariyil:
         
         self.__bitisTarihi = datetime.strptime(
             bitisTarihiMetni,"%d/%m/%Y")
+
+        self.__tatilGunleri = []
+
+        for i in range(len(tatilGunleri)):
+            tatilGunu = tatilGunleri[i]
+            self.__tatilGunleri.append( {
+                "adi": tatilGunu["adi"], 
+                "baslangicTarihi": datetime.strptime(tatilGunu["baslangicTarihi"],"%d/%m/%Y %H:%M"), 
+                "gunSayisi": tatilGunu["gunSayisi"]
+                } )
+            
         
         self.__toplamSaniye = int((self.bitisTarihi - self.baslangicTarihi + timedelta(days=3)).total_seconds())
 
@@ -28,6 +39,10 @@ class Yariyil:
     @property
     def bitisTarihi(self) -> datetime:
         return self.__bitisTarihi
+
+    @property
+    def tatilGunleri(self) -> list:
+        return self.__tatilGunleri
 
     @property
     def toplamSaniye(self) -> int:

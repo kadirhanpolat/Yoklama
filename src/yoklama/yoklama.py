@@ -1,6 +1,6 @@
-from yariyil import *
-from ders import *
-from ogrenciler import *
+from src.yoklama.yariyil import *
+from src.yoklama.ders import *
+from src.yoklama.ogrenciler import *
 from openpyxl import Workbook
 from openpyxl.worksheet.page import PageMargins
 from openpyxl.drawing.image import Image
@@ -23,14 +23,14 @@ def buyuktenKucuge(metin: str) -> str:
 
 class Yoklama:
     
-    def __init__(self, kaynakDosyaYolu, hedefDosyaYolu, universiteAdi, birimAdi, bolumAdi, donem, yariyilBaslangicTarihiMetni, yariyilBitisTarihiMetni, dersAdi, dersKisaAdi, dersSorumlusu, dersKodu, dersinHaftalikGunleri):
+    def __init__(self, kaynakDosyaYolu, hedefDosyaYolu, universiteAdi, birimAdi, bolumAdi, donem, yariyilBaslangicTarihiMetni, yariyilBitisTarihiMetni, yariyilTatilGunleri, dersAdi, dersKisaAdi, dersSorumlusu, dersKodu, dersinHaftalikProgrami):
         self.kaynakDosyaYolu = kaynakDosyaYolu
         self.hedefDosyaYolu = hedefDosyaYolu
         self.universiteAdi = universiteAdi
         self.birimAdi = birimAdi
         self.bolumAdi = bolumAdi
-        self.yariyil = Yariyil(donem, yariyilBaslangicTarihiMetni, yariyilBitisTarihiMetni)
-        self.ders = Ders(dersAdi, dersKisaAdi, dersSorumlusu, dersKodu, dersinHaftalikGunleri)
+        self.yariyil = Yariyil(donem, yariyilBaslangicTarihiMetni, yariyilBitisTarihiMetni, yariyilTatilGunleri)
+        self.ders = Ders(dersAdi, dersKisaAdi, dersSorumlusu, dersKodu, dersinHaftalikProgrami)
         self.ogrenciler = self.__ogrencileriOku()
         self.calismaKitabi = Workbook()
         self.calismaSayfasi = self.calismaKitabi.active
@@ -38,7 +38,7 @@ class Yoklama:
     
     @property
     def toplamSutun(self):
-        return 5 + self.yariyil.toplamHafta * len(self.ders.haftalikGunler)
+        return 5 + self.yariyil.toplamHafta * len(self.ders.haftalikProgram)
     
     def __ogrencileriOku(self) -> pd.DataFrame:
         ogrenciler = pd.read_excel(self.kaynakDosyaYolu)
@@ -65,23 +65,36 @@ class Yoklama:
         
         def haftaTabloBasliklariniEkle():
             for i in range(self.yariyil.toplamHafta):
-                hucre = self.calismaSayfasi.cell(row=1, column=6+len(self.ders.haftalikGunler)*i)
+                hucre = self.calismaSayfasi.cell(row=1, column=6+len(self.ders.haftalikProgram)*i)
                 hucre.value = f"{i+1}. Hafta"
                 hucre.font = Font(name='Calibri', size=9, bold=True, italic=False, vertAlign=None, underline='none', strike=False, color='FF000000')
-                self.calismaSayfasi.merge_cells(start_row=1, start_column=6+len(self.ders.haftalikGunler)*i, end_row=1, end_column=6+len(self.ders.haftalikGunler)*(i+1)-1)
+                self.calismaSayfasi.merge_cells(start_row=1, start_column=6+len(self.ders.haftalikProgram)*i, end_row=1, end_column=6+len(self.ders.haftalikProgram)*(i+1)-1)
                 hucre.alignment = Alignment(horizontal="center", vertical="center")
         
-        def haftaGunTabloBasliklariniEkle():
+        def haftaGunTabloBasliklariniVeTatilGunleriniEkle():
             crow = 2
             ccolumn = 6
             for i in range(self.yariyil.toplamGun):
                 gecerliGun = self.yariyil.baslangicTarihi + timedelta(days=i)
-                for haftalikGunSirasi in self.ders.haftalikGunSiralari:
-                    if gecerliGun.weekday() == haftalikGunSirasi:
+                for n in range(len(self.ders.haftalikProgram)):
+                    if gecerliGun.weekday() == self.ders.haftalikProgram[n]["haftaGunSirasi"]:
                         hucre = self.calismaSayfasi.cell(row=crow, column=ccolumn)
                         hucre.value = datetime.strftime(gecerliGun, "%d/%m")
                         hucre.font = Font(name='Calibri', size=9, bold=True, italic=False, vertAlign=None, underline='none', strike=False, color='FF000000')
                         hucre.alignment = Alignment(horizontal="center", vertical="center",text_rotation=0)
+                        dersBaslangic = gecerliGun
+                        dersBaslangic += timedelta(hours = self.ders.haftalikProgram[n]["baslangicSaati"].hour)
+                        dersBaslangic += timedelta(minutes = self.ders.haftalikProgram[n]["baslangicSaati"].minute)
+                        dersBitis = dersBaslangic
+                        dersBitis += timedelta(minutes = 60 * self.ders.haftalikProgram[n]["dersSayisi"])
+                        for tatilGunu in self.yariyil.tatilGunleri:
+                            tatilBaslangic = tatilGunu["baslangicTarihi"]
+                            tatilBitis = tatilGunu["baslangicTarihi"] + timedelta(days=tatilGunu["gunSayisi"])
+                            if dersBaslangic > tatilBaslangic and dersBitis < tatilBitis:
+                                 self.calismaSayfasi.merge_cells(start_row=crow + 1, start_column=ccolumn, end_row=crow + self.ogrenciler.shape[0], end_column=ccolumn)
+                                 hucre = self.calismaSayfasi.cell(row=crow + 1, column=ccolumn)
+                                 hucre.value = tatilGunu["adi"]
+                                 hucre.alignment = Alignment(textRotation=90, horizontal="center", vertical="center")
                         ccolumn += 1
         
         def ogrenciBilgileriniEkle():
@@ -97,6 +110,7 @@ class Yoklama:
                         hucre.value = self.ogrenciler.iloc[i,j]
                     hucre.font = Font(name='Calibri', size=9, bold=False, italic=False, vertAlign=None, underline='none', strike=False, color='FF000000')
                     hucre.alignment = Alignment(horizontal="center", vertical="center")
+            
 
         def hucreGenislikleriniAyarla():
             self.calismaSayfasi.column_dimensions['A'].width = 2.8
@@ -195,7 +209,7 @@ class Yoklama:
         #logoEkle()
         ogrenciTabloBasliklariniEkle()
         haftaTabloBasliklariniEkle()
-        haftaGunTabloBasliklariniEkle()
+        haftaGunTabloBasliklariniVeTatilGunleriniEkle()
         ogrenciBilgileriniEkle()
         hucreGenislikleriniAyarla()
         hucreYukseklikleriniAyarla()

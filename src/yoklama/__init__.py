@@ -1,1 +1,1 @@
-from src.yoklama.yoklama import *
+__all__ = ["ders", "ogrenciler", "yariyil", "yoklama"]
